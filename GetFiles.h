@@ -8,10 +8,7 @@
 #include <map>
 
 
-
 using namespace std;
-
-
 
 vector<string> split(const string& line, char delimiter) {
     
@@ -31,10 +28,6 @@ class Getfiles{
         "subjectClass","subjectPriority","subjectTeacher","subjectTeachersClass"
     };
     inline static const string ext = ".csv";
-    inline static const vector<string> days = {
-        "monday","tuesday","wednesday","thursday","friday","saturday"
-    };
-
     public:
     int numberofperiods;
     map<string,int> classIds;
