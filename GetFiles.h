@@ -6,21 +6,13 @@
 #include <sstream>
 #include <vector>
 #include <map>
+#include <algorithm>
+#include "split.h"
+
 
 
 using namespace std;
 
-vector<string> split(const string& line, char delimiter) {
-    
-    vector<string> parts;
-    stringstream ss(line);
-    string item;
-    
-    while (getline(ss, item, delimiter)) {
-        parts.push_back(item);
-    }
-    return parts;
-}
 class Getfiles{
     inline static const string folder ="demo/";
     inline static const vector<string> csvFiles = {
@@ -38,6 +30,18 @@ class Getfiles{
     map<string,map<string,int>> subPriority;
     map<string,map<string,string>> subjectTeacher;
     map<string,map<string,string>> subjectTeacherClass;
+    vector<string> classes;
+    Getfiles(int totalClasses){
+        ifstream file(folder+csvFiles[1]+ext);
+        string line;
+        if(checkopen(file)){
+            while(getline(file,line) && classes.size()<totalClasses){
+                vector<string> currentline = split(line,',');
+                classes.push_back(currentline[0]);
+            }
+        }
+        file.close();
+    }
 
     bool checkopen(ifstream& filename){
             if(!filename.is_open()){
@@ -80,11 +84,14 @@ class Getfiles{
         vector<string> subjectlist = split(line,',');
         while(getline(file,line)){
             vector<string> currentline = split(line,',');
-            map<string,int> priorities;
-            for(int i=1;i<subjectlist.size();i++){
-                priorities[subjectlist[i]]=stoi(currentline[i]);
+            auto it = find(classes.begin(),classes.end(),currentline[0]);
+            if(it!=classes.end()){
+                map<string,int> priorities;
+                for(int i=1;i<subjectlist.size();i++){
+                    priorities[subjectlist[i]]=stoi(currentline[i]);
+                }
+                subPriority[currentline[0]]=priorities;
             }
-            subPriority[currentline[0]]=priorities;
         }
         return subPriority;
         
@@ -129,7 +136,10 @@ class Getfiles{
         if(checkopen(file)){
             while(getline(file,line)){
                 vector<string> tmp = split(line,',');
-                classIds[tmp[0]] = stoi(tmp[1]);
+                if(find(classes.begin(), classes.end(), tmp[0]) != classes.end()){
+                    classIds[tmp[0]] = stoi(tmp[1]);
+                }
+                
             }
             file.close();
         }
@@ -164,6 +174,9 @@ class Getfiles{
     }
     map<string,int> getteacherid(){
         return teacherId;
+    }
+    vector<string> getClasses(){
+        return classes;
     }
 };
 
