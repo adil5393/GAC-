@@ -92,8 +92,8 @@ pair<int, double> findMaxValue(const std::map<int, double>& mymap) {
 
 int main(){
 
-    int totalClasses=5;
-    int totalpopulation = 1000;
+    int totalClasses=1;
+    int totalpopulation = 100;
     Getfiles timetable(totalClasses);
     timetable.setIds();   
 
@@ -102,6 +102,7 @@ int main(){
     map<string,int> classIds = timetable.getclassid();
     map<string,int> subjectId = timetable.getsubjectid();
     map<string,int> teacherId = timetable.getteacherid();
+    vector<string> classes = timetable.getclasslist();
 
     map<string,vector<string>> subjectClasses = timetable.getSubjectClasses();
     map<string,map<string,int>> subjectPriority = timetable.getSubjectPriority();
@@ -111,7 +112,7 @@ int main(){
     map<string,vector<string>> allpairs = pairs.getAllpairs();
     //map<string,map<string,vector<string>>> Timetable = pairs.getclasswise(allpairs);
     vector<map<string,map<string,vector<string>>>> populationSpace = pairs.createPopulation(totalpopulation,allpairs);
-
+    printNestedMap(populationSpace[0]);
 
     // printMapStringVector(allpairs,"Timetable bairs");
     // printNestedMap(Timetable);
@@ -119,17 +120,18 @@ int main(){
     //     printNestedMap(tt);
     // }
     //printNestedMap(Timetable);
-    CalculateScores firstscores(subjectPriority,numberofperiods,populationSpace);
-    map<int,double> fscores= firstscores.PopulationScores();
+    CalculateScores firstscores(subjectPriority,numberofperiods);
+    map<int,double> fscores= firstscores.PopulationScores(populationSpace);
     map<int,double> probadist = firstscores.getdristribution(fscores);
     auto result = findMaxValue(probadist);
     std::cout << "Key: " << result.first 
               << " Value: " << result.second << std::endl;
-    Crossover fcrossover(populationSpace,2,subjectPriority,numberofperiods,totalpopulation);
-    for(int i = 0;i<=100;i++){
+    Crossover fcrossover(2,subjectPriority,numberofperiods,totalpopulation,subjectTeacherClass,classes);
+    for(int i = 0;i<=10;i++){
         populationSpace = fcrossover.newGeneration(populationSpace,probadist);
-        firstscores=CalculateScores(subjectPriority,numberofperiods,populationSpace);
-        fscores = firstscores.PopulationScores();
+        fscores = firstscores.PopulationScores(populationSpace);
+        probadist = firstscores.getdristribution(fscores);
+
         result = findMaxValue(fscores);
         
         std::cout << "Key: " << result.first 
@@ -137,15 +139,7 @@ int main(){
         if(result.second==0){break;}
     }
     printNestedMap(populationSpace[result.first]);
-    // printMapStringInt(populationscores,"Index Scores");
-    // map<string,double> priorityscores = priorityScore(subjectPriority,classIds);
     
-    // printMapStringInt(PopulationProbabilityDistribution,"Population Probability Dist");
-    //Crossover crossover(populationSpace,2,subjectPriority,numberofperiods,totalpopulation);
-    // vector<int> bestkeys = crossover.getKeysandWeights();
-    // for(const auto& bestofthebest: bestkeys){
-    //     cout<<bestofthebest<<"  "<<endl;
-    // }
     return 0;
 }
 

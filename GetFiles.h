@@ -178,6 +178,9 @@ class Getfiles{
     vector<string> getClasses(){
         return classes;
     }
+    vector<string> getclasslist(){
+        return classes;
+    }
 };
 
 

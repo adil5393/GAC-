@@ -14,28 +14,28 @@ using namespace std;
 class CalculateScores{
     public:
     map<string,map<string,int>> subjectPriority;
-    vector<map<string,map<string,vector<string>>>> populationSpace;
     vector<string> days = {"monday","tuesday","wednesday","thursday","friday","saturday"};
     int numberofperiods;
 
-    CalculateScores(map<string,map<string,int>> subjectPriority,int numberofperiods,vector<map<string,map<string,vector<string>>>> populationSpace){
+    CalculateScores(map<string,map<string,int>> subjectPriority,int numberofperiods){
         this->subjectPriority = subjectPriority;
         this->numberofperiods = numberofperiods;
-        this->populationSpace = populationSpace;
+
     }
     
     map<string,double> calculateindexscores(map<string,map<string,vector<string>>> Timetable){
         int totalScore;
         map<string,double> indexscores;
         for(const auto& kv: subjectPriority){
-            totalScore=0;
+            totalScore=36;
             string currentclass = kv.first;
             for(const auto& subpri: kv.second){
                 string currentsubject = subpri.first;
-                double indexScore=0;
                 int priority = subpri.second;
+                if(priority<=0)continue;
                 int nextpriroty;
                 bool donewithpriroty=false;
+                int err=0;
                 while (true){
                     if(priority>days.size()){
                         nextpriroty = priority-days.size();
@@ -44,8 +44,8 @@ class CalculateScores{
                     else{
                         donewithpriroty=true;
                     }
-
                     for(int periods=0;periods<numberofperiods;periods++){
+                        double indexScore=0;
                         vector<string> checkifin;
                         for(string day: days){                    
                             checkifin.push_back(split(Timetable[currentclass][day][periods],'-')[1]);
@@ -53,32 +53,24 @@ class CalculateScores{
                         auto cs = find(checkifin.begin(),checkifin.end(),currentsubject);
                         if(cs!=checkifin.end()){
                             for(string day: days){
-                                if(split(Timetable[currentclass][day][periods],'-')[1]!=currentsubject){
-                                    indexScore--;
-                                }
-                                else{
+                                if(split(Timetable[currentclass][day][periods],'-')[1]==currentsubject){
                                     indexScore++;
                                 }
                             }
+                            err += priority-indexScore;
+                            //cout<<"Period--"<<periods<<"subject--"<<currentsubject<<" priroty--"<<priority<<" next pri--"<<nextpriroty<<" error--"<<err<<endl;
                         }
-                        
                     }
                     if(donewithpriroty){
                         break;
                     }
                     priority = nextpriroty;
-                    if(priority<days.size()){
-                        indexScore += priority;
-                    }
                 }
-                if(indexScore>priority){
-                    indexScore = indexScore-(indexScore-priority);
-                }
-                totalScore+=indexScore;
+                totalScore -= err;
                 // cout<<currentsubject<<"  "<<indexScore<<endl;
             }
             indexscores[currentclass] = totalScore;
-
+            
         }
         return indexscores;
     }
@@ -105,7 +97,7 @@ class CalculateScores{
         }
         return PriorityScore;
     }
-    map<int,double> PopulationScores(){
+    map<int,double> PopulationScores(vector<map<string,map<string,vector<string>>>> populationSpace){
         map<int,double> populationScores;
         map<int,map<string,double>> populationindexclassscores;
         map<int,map<string,double>> populationpriorityclassscores;
@@ -122,16 +114,16 @@ class CalculateScores{
             populationScores[i] += sum;
             populationindexclassscores[i] = indexScores;//Classwise-Indexscores for each Populaiton
         }
-        for(int i=0;i<populationSpace.size();i++){
-            double popscore = 0;
-            map<string,double> priorityscore = calculatePriorityScore(populationSpace[i]);
-            int sum=0;
-            for(const auto& kv:priorityscore){
-                sum+=kv.second;
-            }
-            populationScores[i] += sum;
-            populationpriorityclassscores[i] = priorityscore;//Classwise-Priorityscores for each population
-        }
+        // for(int i=0;i<populationSpace.size();i++){
+        //     double popscore = 0;
+        //     map<string,double> priorityscore = calculatePriorityScore(populationSpace[i]);
+        //     int sum=0;
+        //     for(const auto& kv:priorityscore){
+        //         sum+=kv.second;
+        //     }
+        //     populationScores[i] += sum;
+        //     populationpriorityclassscores[i] = priorityscore;//Classwise-Priorityscores for each population
+        // }
         return populationScores;
 
     }

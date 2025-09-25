@@ -18,18 +18,24 @@ private:
     int n;
     int totalpopulation;
     map<int,double> populationscores;
+    map<string, map<string,string>> subjectTeacherClass;
+    vector<string> classes;
 
 public:
-    Crossover(vector<map<string,map<string,vector<string>>>> populationSpace,
+    Crossover(
               int n,
               map<string,map<string,int>> subjectPriority,
               int numberofperiods,
-              int totalpopulation)
+              int totalpopulation,
+            map<string, map<string,string>> subjectTeacherClass,
+            vector<string> classes )
     {
         this->n = n;
         this->subjectPriority = subjectPriority;
         this->numberofperiods = numberofperiods;
         this->totalpopulation = totalpopulation;
+        this-> subjectTeacherClass = subjectTeacherClass;
+        this->classes = classes;
     }
 
     // Precomputed random selection of parent indices
@@ -42,36 +48,112 @@ public:
         }
         return random_choices(keys, weights, n);
     }
+    map<string,map<string,vector<string>>> fixpriority(map<string,map<string,vector<string>>> child) 
+    {
+        for (const auto& [currentcls, subjPriorities] : subjectPriority) {
+            map<string,int> actualCounts;
+
+            // Count how many times each subject already appears
+            for (const auto& [subject, pri] : subjPriorities) {
+                int count = 0;
+                for (const auto& day : days) {
+                    for (int period = 0; period < numberofperiods; period++) {
+                        const string& slot = child[currentcls][day][period];
+
+                        if (slot.size() > 1) {
+                            auto parts = split(slot, '-');
+                            if (parts.size() > 1 && parts[1] == subject) {
+                                count++;
+                                if (count > pri) {
+                                    // Remove excess
+                                    child[currentcls][day][period] = "-";
+                                }
+                            }
+                        }
+                    }
+                }
+                actualCounts[subject] = count;
+            }
+
+            // Fix under-represented subjects
+            for (const auto& [subject, count] : actualCounts) {
+                int required = subjectPriority.at(currentcls).at(subject);
+                if (count < required) {
+                    int toAdd = required - count;
+
+                    // Construct safe "teacher-subject" pair
+                    string pair;
+                    auto subjIt = subjectTeacherClass.find(subject);
+                    if (subjIt != subjectTeacherClass.end()) {
+                        auto clsIt = subjIt->second.find(currentcls);
+                        if (clsIt != subjIt->second.end()) {
+                            pair = clsIt->second + "-" + subject;
+                        } else {
+                            cerr << "[WARN] Teacher missing for class " << currentcls
+                                << " subject " << subject << endl;
+                            continue;
+                        }
+                    } else {
+                        cerr << "[WARN] Subject " << subject
+                            << " not found in subjectTeacherClass" << endl;
+                        continue;
+                    }
+
+                    // Place missing occurrences
+                    for (const auto& day : days) {
+                        for (int period = 0; period < numberofperiods; period++) {
+                            if (child[currentcls][day][period] == "-") {
+                                // cout << "Fixing: class=" << currentcls
+                                //      << " subject=" << subject
+                                //      << " -> " << pair
+                                //      << " on " << day << " period=" << period << endl;
+
+                                child[currentcls][day][period] = pair;
+                                toAdd--;
+                            }
+                            if (toAdd == 0) break;
+                        }
+                        if (toAdd == 0) break;
+                    }
+                }
+            }
+        }
+        return child;
+    } 
+    map<string,map<string,vector<string>>> mutate(map<string,map<string,vector<string>>> child){
+        string cls = classes[getrandomint(0,classes.size()-1)];
+        string day = days[getrandomint(0,days.size()-1)];
+        int p1 = getrandomint(0,numberofperiods-1);
+        int p2 = getrandomint(0,numberofperiods-1);
+        if (p1 != p2) {
+            swap(child[cls][day][p1], child[cls][day][p2]);
+        }
+        return child;
+    }
+
+
 
     // Create a child from two selected parents
-    map<string,map<string,vector<string>>> childfrompopulation(const vector<int>& key,vector<map<string,map<string,vector<string>>>> populationSpace,map<int,double> PopulationProbabilityDistribution) {
+    map<string,map<string,vector<string>>> childfrompopulation(vector<int>& keys,vector<double>& weights,vector<map<string,map<string,vector<string>>>> populationSpace,map<int,double> PopulationProbabilityDistribution) {
         map<string,map<string,vector<string>>> child;
 
         // Use references to avoid copying large maps
-        auto& parent1 = populationSpace[key[0]];
-        auto& parent2 = populationSpace[key[1]];
+        for(string cls: classes){
+            vector<int> parents= random_choices(keys,weights,n); 
+            auto& parent1 = populationSpace[parents[0]];
+            auto& parent2 = populationSpace[parents[1]];
 
-        // Determine which parent is fitter
-        if(PopulationProbabilityDistribution[key[0]] < PopulationProbabilityDistribution[key[1]]) {
-            swap(parent1, parent2);
+            // Determine which parent is fitter
+            if(PopulationProbabilityDistribution[parents[0]] < PopulationProbabilityDistribution[parents[1]]) {
+                swap(parent1, parent2);
+            }
+            child[cls] = parent1[cls];
         }
-
-        // Random crossover point at day level
-        int crossoverpoint = getrandomint(0, days.size()-1);
-        vector<string> days1(days.begin(), days.begin() + crossoverpoint);
-        vector<string> days2(days.begin() + crossoverpoint, days.end());
-
-        // Build child
-        for(const auto& kv: parent1) {
-            string currentclass = kv.first;
-            map<string,vector<string>> inner;
-
-            for(const auto& day: days1) inner[day] = parent1.at(currentclass).at(day);
-            for(const auto& day: days2) inner[day] = parent2.at(currentclass).at(day);
-
-            child[currentclass] = inner;
+        
+        child = fixpriority(child);
+        if(getrandom()<=0.01){
+            child = mutate(child);
         }
-
         return child;
     }
 
@@ -79,7 +161,7 @@ public:
         // Compute population scores once per generation
 
         vector<map<string,map<string,vector<string>>>> newgen;
-        newgen.reserve(totalpopulation);
+        // newgen.reserve(totalpopulation);
 
         // Precompute keys and weights for random selection
         vector<int> keys;
@@ -91,8 +173,8 @@ public:
 
         while(newgen.size() < totalpopulation) {
             // Select two parents for crossover
-            vector<int> selected = random_choices(keys, weights, n);
-            newgen.push_back(childfrompopulation(selected,populationSpace,PopulationProbabilityDistribution));
+            newgen.push_back(childfrompopulation(keys,weights,populationSpace,PopulationProbabilityDistribution));
+            // cout<<newgen.size()<<endl;
         }
 
         return newgen;

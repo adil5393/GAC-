@@ -44,6 +44,13 @@ int getrandomint(int start, int end) {
 
     return random_number;
 }
+double getrandom() {
+    random_device rd;  
+    mt19937 gen(rd());  // Mersenne Twister engine
+    uniform_real_distribution<> dist(0.0, 1.0); // range [0,1)
+    double r = dist(gen);
+    return r;
+}
 
 
 #endif
